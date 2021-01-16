@@ -1,0 +1,31 @@
+{
+  "name": "iac",
+  "version": "0.0.0",
+  "bin": {
+    "iac": "bin/iac.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "@aws-cdk/assert": "^1.64.1",
+    "@types/jest": "^26.0.10",
+    "@types/node": "10.17.27",
+    "@types/source-map-support": "^0.5.3",
+    "aws-cdk": "^1.61.1",
+    "eslint": "^7.7.0",
+    "jest": "^26.4.2",
+    "prettier": "^2.1.1",
+    "prettier-eslint": "^11.0.0",
+    "ts-jest": "^26.2.0",
+    "ts-node": "^8.1.0",
+    "typescript": "~3.9.7"
+  },
+  "dependencies": {
+    "@aws-cdk/core": "^1.64.1",
+    "source-map-support": "^0.5.16"
+  }
+}
