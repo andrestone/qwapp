@@ -6,7 +6,8 @@
     "upgrade-cdk-in-all": "lerna exec --concurrency 1 -- \"jq '.dependencies | keys | .[]' package.json | grep cdk | xargs -t npx yarn@1.19.0 add\" && lerna exec --concurrency 1 --scope \"*/iac\" -- \"jq '.devDependencies | keys | .[]' package.json | grep cdk | xargs -t npx yarn@1.19.0 add -D\"",
     "upgrade-any-in-all": "lerna exec --concurrency 1 -- \"jq '.dependencies | keys | .[]' package.json | grep ${0} | xargs -t npx yarn@1.19.0 add\" && lerna exec --concurrency 1 --scope \"*/iac\" -- \"jq '.devDependencies | keys | .[]' package.json | grep ${0} | xargs -t npx yarn@1.19.0 add -D\"",
     "upgrade-all-in-all": "lerna exec --concurrency 1 -- \"jq '.dependencies | keys | .[]' package.json | xargs -t npx yarn@1.19.0 add\" && lerna exec --concurrency 1 -- \"jq '.devDependencies | keys | .[]' package.json | xargs -t npx yarn@1.19.0 add -D\"",
-    "new-ing": "node scripts/ingredients.js"
+    "new-ing": "node scripts/ingredients.js",
+    "oldyarn": "npx yarn@1.19.0"
   },
   "devDependencies": {
     "fs-extra": "^9.0.1",
