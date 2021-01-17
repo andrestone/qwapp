@@ -2,7 +2,6 @@ import * as aws from 'aws-sdk';
 import { Handler } from 'aws-lambda';
 import { v4 as uuidv4 } from 'uuid';
 
-
 // Uses the docker-compose.yml from https://github.com/nQuake/server-docker
 
 /**
@@ -48,7 +47,6 @@ interface ApiResponse {
   readonly body: ApiResponseBody;
 }
 
-
 /**
  * The API Response body
  */
@@ -73,19 +71,21 @@ interface ApiResponseBody {
  * Creates an EC2 instance with custom userdata for a containerized QW server to run
  * Authentication / authorization is handled by ApiGW resource policies
  */
-export const createServer: Handler<any, ApiResponse> = async (event) => {
-  if (!event?.queryStringParametrs?.region) {
+export const createServer: Handler<any, ApiResponse> | any = async (event: any) => {
+  if (!event?.body?.region) {
     return sendWrongApiCall();
   }
 
   // Region
-  const region = event.queryStringParametrs.region;
+  const region = event.body.region;
 
   // The unique server ID
   const serverId = uuidv4();
 
   // SSM Parameter Store Client
-  const ssm = new aws.SSM();
+  const ssm = new aws.SSM({
+    region,
+  });
 
   // Latest Amazon Linux AMI
   try {
@@ -93,10 +93,12 @@ export const createServer: Handler<any, ApiResponse> = async (event) => {
       .getParameters({
         Names: ['/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'],
       })
-      .promise()) as any)[0].Value;
+      .promise()) as any).Parameters[0].Value;
 
     // The userdata
     const userData = `
+      # sending logs to the console
+      exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
       amazon-linux-extras install docker -y
       usermod -a -G docker ec2-user
       service docker start
@@ -182,36 +184,115 @@ EOF
       region,
     });
 
+    // We'll use the default VPC in each region
+    const defaultVpc = (await client.describeVpcs({}).promise()).Vpcs!.filter((vpc) => vpc.IsDefault)[0].VpcId!;
+
+    // Check for existing SecurityGroup QWApp
+    let sg;
+    try {
+      const sgs = (
+        await client
+          .describeSecurityGroups({
+            GroupNames: ['QWApp'],
+          })
+          .promise()
+      ).SecurityGroups!;
+      if (sgs.length === 1) {
+        sg = sgs[0];
+      } else {
+        sg = await client
+          .createSecurityGroup({
+            GroupName: 'QWApp',
+            Description: 'Allow connections to QW Servers',
+            VpcId: defaultVpc,
+          })
+          .promise();
+
+        await client
+          .authorizeSecurityGroupIngress({
+            CidrIp: '0.0.0.0/0',
+            GroupId: sg.GroupId!,
+            FromPort: 27500,
+            ToPort: 30000,
+            IpProtocol: 'udp',
+          })
+          .promise();
+
+        await client
+          .authorizeSecurityGroupIngress({
+            CidrIp: '0.0.0.0/0',
+            GroupId: sg.GroupId!,
+            FromPort: 28000,
+            ToPort: 28000,
+            IpProtocol: 'tcp',
+          })
+          .promise();
+
+        // FIXME: allowing ssh in development
+        await client
+          .authorizeSecurityGroupIngress({
+            CidrIp: '0.0.0.0/0',
+            GroupId: sg.GroupId!,
+            FromPort: 22,
+            ToPort: 22,
+            IpProtocol: 'tcp',
+          })
+          .promise();
+      }
+    } catch (err) {
+      console.log('Error while setting up QWApp security group');
+      return sendRes(500, { success: false, message: 'Internal server error: contact service admin.' });
+    }
+
     // Creating the instance
     const instance = await client
       .runInstances({
+        TagSpecifications: [
+          {
+            Tags: [
+              {
+                Key: 'Name',
+                Value: `QWAppInstance-${serverId}`,
+              },
+            ],
+            ResourceType: 'instance',
+          },
+        ],
         ImageId: latestAMI,
-        UserData: userData,
+        UserData: Buffer.from(userData).toString('base64'),
         MaxCount: 1,
         MinCount: 1,
+        SecurityGroupIds: [sg.GroupId!],
       })
       .promise();
-    return sendRes(200, {
+
+    return sendRes(201, {
       success: true,
       message: `QW server ${serverId} (instance ${instance.Instances![0].InstanceId} requested. `,
+      data: {
+        serverId,
+        instanceId: instance.Instances![0].InstanceId,
+        region,
+        ip: instance.Instances![0].PublicIpAddress,
+      },
     });
   } catch (err) {
     console.log(`Error when creating new instance: ${err}`);
-    return sendRes(500, { success: true, message: "An error has occurred, couldn't start the instance." });
+    return sendRes(500, { success: false, message: "An error has occurred, couldn't start the instance." });
   }
 };
 
 /**
  * Receives the call from the server requestig to self-destroy
  */
-export const terminateServer: Handler = async (event) => {
-  if (!event?.queryStringParametrs?.token || event?.queryStringParametrs?.instanceId) {
+export const terminateServer: Handler<any, ApiResponse> | any = async (event: any) => {
+  if (!event?.body?.token || event?.body?.instanceId) {
     return sendWrongApiCall();
   }
 
   // If call is OK, proceed.
-  const uid = event?.queryStringParametrs?.uid;
-  const instanceId = event?.queryStringParametrs?.instancId;
+  const uid = event?.body?.uid;
+  const instanceId = event?.body?.instancId;
 
   // EC2 client
   const client = new aws.EC2();
@@ -230,6 +311,10 @@ export const terminateServer: Handler = async (event) => {
     return sendRes(500, { success: false, message: "An error has occurred, couldn't terminate instances." });
   }
 };
+
+/**
+ * Get Server Status
+ */
 
 /**
  * Send HTTP response

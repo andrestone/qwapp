@@ -12,6 +12,6 @@
     "skipLibCheck": true,                     
     "forceConsistentCasingInFileNames": true  
   },
-  "include": ["lib/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/singled/**/*.ts"]
+  "include": ["lib/**/*", "test/**/*"],
+  "exclude": ["node_modules" ]
 }
