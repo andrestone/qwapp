@@ -12,6 +12,23 @@
 
 - Scheduled games: always busy? Schedule your QW games! Invite your friends to join you for a QW session in the future,
   get reminders and notifications regarding the event and a server set up for you and your friends to play.
+  
+## Discord Bot
+**Example commands**
+
+Command | Description
+--- | ---
+`!qwapp server up <AWS_ENDPOINT>` | Start server at given [AWS endpoint](https://docs.aws.amazon.com/general/latest/gr/rande.html#regional-endpoints)
+`!qwapp server list` | List servers
+`!qwapp server down <SERVER_ID>` | Stop server by given ID
+
+
+**Server list**
+
+ID | Hostname | Status | Tag | Endpoint | Created by | Uptime
+--- | --- | --- | --- | --- | --- | ---
+4645 | `bravo.quake.se` | Prewar, 1/2 players | Match Maker Game 6546 - vikpe vs dev | `us-east-2` | vikpe | 2 minutes
+4646 | `charlie.quake.se` | Prewar, 0/2 players | Match Maker Game 6547 - dev vs meag | `us-west-1` | dev | 3 hours, 12 minutes
 
 
 ## Packages
